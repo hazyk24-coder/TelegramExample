@@ -1,13 +1,8 @@
 buildscript {
 
     ext {
-        compileSdkVersion = 30
-        buildToolsVersion = "30.0.3"
-        minSdkVersion = 21
-        targetSdkVersion = 30
-        kotlinVersion = "1.4.32"
-        compose_version = "1.0.0-beta06"
-        hilt_version = "2.35.1"
+        kotlinVersion = "1.9.22"
+        hilt_version = "2.48"
     }
 
     repositories {
@@ -16,7 +11,7 @@ buildscript {
     }
 
     dependencies {
-        classpath "com.android.tools.build:gradle:7.4.2"
+        classpath "com.android.tools.build:gradle:8.2.2"
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion"
         classpath "com.google.dagger:hilt-android-gradle-plugin:$hilt_version"
     }
