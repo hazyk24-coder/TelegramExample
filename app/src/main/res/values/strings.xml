@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">My Telegram</string>
+    <string name="app_name">HZ Messenger</string>
     <string name="enter">Enter</string>
     <string name="loading">Loading</string>
     <string name="chats_error">Cannot load chats</string>
