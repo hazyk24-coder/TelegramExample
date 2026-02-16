@@ -1,10 +1,26 @@
-name: Build APK
+name: Build Android (APK/AAB)
 
 on:
+  workflow_dispatch:
+    inputs:
+      variant:
+        description: "Build variant"
+        required: true
+        default: "debug"
+        type: choice
+        options:
+          - debug
+          - release
+      artifact:
+        description: "What to build"
+        required: true
+        default: "apk"
+        type: choice
+        options:
+          - apk
+          - aab
   push:
-    branches:
-      - main
-      - master
+    branches: [ "main", "master" ]
 
 jobs:
   build:
@@ -19,18 +35,62 @@ jobs:
         with:
           distribution: temurin
           java-version: 17
+          cache: gradle
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Grant execute permission
+      - name: Grant gradlew permission
         run: chmod +x gradlew
 
-      - name: Build Debug APK
-        run: ./gradlew assembleDebug
+      # (Опционально) Подготовка keystore для подписанного Release
+      # Сработает только если ты добавишь Secrets (см. ниже)
+      - name: Decode keystore (release only)
+        if: ${{ inputs.variant == 'release' }}
+        run: |
+          if [ -n "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" ]; then
+            echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > keystore.jks
+            echo "Keystore decoded"
+          else
+            echo "No keystore in secrets. Release will be unsigned (or fail if signing required)."
+          fi
 
-      - name: Upload APK
+      - name: Build APK (Debug)
+        if: ${{ inputs.artifact == 'apk' && inputs.variant == 'debug' }}
+        run: ./gradlew :app:assembleDebug
+
+      - name: Build APK (Release)
+        if: ${{ inputs.artifact == 'apk' && inputs.variant == 'release' }}
+        env:
+          ANDROID_KEYSTORE_PATH: ${{ github.workspace }}/keystore.jks
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: ./gradlew :app:assembleRelease
+
+      - name: Build AAB (Release)
+        if: ${{ inputs.artifact == 'aab' }}
+        env:
+          ANDROID_KEYSTORE_PATH: ${{ github.workspace }}/keystore.jks
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: ./gradlew :app:bundleRelease
+
+      - name: Upload APK (Debug)
+        if: ${{ inputs.artifact == 'apk' && inputs.variant == 'debug' }}
         uses: actions/upload-artifact@v4
         with:
-          name: telegram-apk
+          name: app-debug-apk
           path: app/build/outputs/apk/debug/*.apk
+
+      - name: Upload APK (Release)
+        if: ${{ inputs.artifact == 'apk' && inputs.variant == 'release' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release-apk
+          path: app/build/outputs/apk/release/*.apk
+
+      - name: Upload AAB (Release)
+        if: ${{ inputs.artifact == 'aab' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release-aab
+          path: app/build/outputs/bundle/release/*.aab
